@@ -32,7 +32,20 @@ def analyze_java_sources(project_root: str) -> List[Dict]:
         }
     """
     root = Path(project_root)
-    java_files = list(root.rglob("*.java"))
+    # Prefer scanning main sources when present; otherwise scan whole repo but exclude common folders.
+    main_src = root / "src" / "main" / "java"
+    if main_src.exists():
+        java_files = list(main_src.rglob("*.java"))
+    else:
+        # Exclude these directories when scanning whole repo
+        exclude_dirs = {".mvn", "target", "src/test", "node_modules"}
+        java_files = []
+        for f in root.rglob("*.java"):
+            # skip if any excluded dir is in the file's parts
+            parts = {p.lower() for p in f.parts}
+            if parts & {d.lower() for d in exclude_dirs}:
+                continue
+            java_files.append(f)
     results = []
 
     class_re = re.compile(r"\bclass\s+([A-Za-z_][A-Za-z0-9_]*)")
@@ -54,6 +67,9 @@ def analyze_java_sources(project_root: str) -> List[Dict]:
         classes = class_re.findall(text)
         # If file contains multiple classes, we'll create an entry per top-level class name found.
         for cls in classes:
+            # Skip classes that look like test classes
+            if cls.endswith("Test"):
+                continue
             methods = []
             for mm in method_re.finditer(text):
                 visibility, ret_type, name, params = mm.groups()
@@ -88,9 +104,20 @@ def generate_junit_tests(class_infos: List[Dict], project_root: str) -> List[str
     created: List[str] = []
     test_root = root / "src" / "test" / "java"
 
+    seen = set()
+
     for info in class_infos:
+        # Skip any classes that came from test sources (we don't generate tests for tests)
+        fpath = info.get("file", "")
+        fpath_norm = fpath.replace("\\", "/").lower()
+        if "/src/test/" in fpath_norm or fpath_norm.startswith("src/test/"):
+            continue
         package = info.get("package")
         class_name = info.get("class")
+        # Skip generating tests for classes that look like test classes
+        if class_name.endswith("Test"):
+            continue
+
         test_class_name = f"{class_name}Test"
 
         if package:
@@ -101,6 +128,17 @@ def generate_junit_tests(class_infos: List[Dict], project_root: str) -> List[str
         package_path.mkdir(parents=True, exist_ok=True)
 
         file_path = package_path / f"{test_class_name}.java"
+
+        # If file already exists, skip to avoid overwriting developer tests
+        if file_path.exists():
+            continue
+
+        # Avoid duplicate generation if class name/package combo already handled
+        key = (package or "", class_name)
+        if key in seen:
+            continue
+        seen.add(key)
+
         # Build file contents
         lines: List[str] = []
         if package:
@@ -112,7 +150,6 @@ def generate_junit_tests(class_infos: List[Dict], project_root: str) -> List[str
         lines.append("")
         lines.append(f"public class {test_class_name} {{")
 
-        # For each method, generate a placeholder test
         methods = info.get("methods", [])
         if not methods:
             # Add a basic smoke test
@@ -123,19 +160,26 @@ def generate_junit_tests(class_infos: List[Dict], project_root: str) -> List[str
             lines.append("    }")
         else:
             for m in methods:
-                test_name = f"test_{m['name']}"
+                # skip private methods and constructors
+                name = m.get("name")
+                if name == class_name:
+                    continue
+                test_name = f"test_{name}"
                 lines.append("    @Test")
                 lines.append(f"    void {test_name}() {{")
                 lines.append("        // TODO: implement test for: {}".format(m.get("signature")))
                 lines.append("        // Example: create instance and call method")
                 lines.append(f"        // {class_name} sut = new {class_name}();")
-                lines.append("        // assertEquals(expected, sut.{name}(...));".format(name=m["name"]))
+                lines.append("        // assertEquals(expected, sut.{name}(...));".format(name=name))
                 lines.append("    }")
 
         lines.append("}")
 
         file_text = "\n".join(lines) + "\n"
-        file_path.write_text(file_text, encoding="utf-8")
+        # Write atomically: write to temp then rename to avoid partial files
+        tmp = file_path.with_suffix(file_path.suffix + ".tmp")
+        tmp.write_text(file_text, encoding="utf-8")
+        tmp.replace(file_path)
         created.append(str(file_path.relative_to(root)))
 
     return created
