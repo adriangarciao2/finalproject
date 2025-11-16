@@ -24,6 +24,7 @@ import json
 
 from mcp_tools.coverage import parse_jacoco_report, find_uncovered_segments
 from mcp_tools.git_tools import git_workflow_commit_and_push
+from mcp_tools.auto_fix import propose_fixes, apply_fix
 
 
 def analyze_java_sources(project_root: str) -> List[Dict]:
@@ -103,6 +104,8 @@ def improve_tests_iteration(
     push: bool = False,
     branch_name: str | None = None,
     dry_run: bool = True,
+    apply_fixes: bool = False,
+    max_fixes_apply: int = 1,
 ) -> Dict:
     """Perform one automated test-improvement iteration.
 
@@ -224,6 +227,23 @@ def improve_tests_iteration(
         # point to suspected code by reusing the first failed test name if available
         if second.get("failed_tests"):
             iteration["suspected_tests"] = second.get("failed_tests")
+        # Propose conservative fixes based on the stacktrace / raw output
+        try:
+            suggestions = propose_fixes(second.get("raw_output", ""), project_root, max_suggestions=max_fixes_apply)
+            iteration["fix_suggestions"] = suggestions
+            if apply_fixes and suggestions:
+                applied = []
+                for s in suggestions[:max_fixes_apply]:
+                    ok = apply_fix(s)
+                    applied.append({"suggestion": s, "applied": ok})
+                iteration["applied_fixes"] = applied
+                if any(a.get("applied") for a in applied):
+                    # rerun tests after applying fixes
+                    third = run_maven_tests(project_root)
+                    iteration["third_test"] = third
+        except Exception:
+            iteration["errors"].append(f"auto-fix-error: {traceback.format_exc()}")
+
         return iteration
 
     # 8) If tests pass and do_commit requested, commit + push
