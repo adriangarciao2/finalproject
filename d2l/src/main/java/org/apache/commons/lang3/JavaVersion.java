@@ -150,29 +150,34 @@ public enum JavaVersion {
         } else {
             // Try to handle newer Java version strings (e.g. "9", "11", "17", "21")
             if (nom != null) {
-                try {
-                    // Some JVMs return just a major version like "11" or "17".
-                    // Parse a float and map to the closest supported enum (cap at JAVA_1_8).
-                    float v = Float.parseFloat(nom);
-                    if (v >= 1.8f) {
-                        return JAVA_1_8;
-                    } else if (v >= 1.7f) {
-                        return JAVA_1_7;
-                    } else if (v >= 1.6f) {
-                        return JAVA_1_6;
-                    } else if (v >= 1.5f) {
-                        return JAVA_1_5;
-                    } else if (v >= 1.4f) {
-                        return JAVA_1_4;
-                    } else if (v >= 1.3f) {
-                        return JAVA_1_3;
-                    } else if (v >= 1.2f) {
-                        return JAVA_1_2;
-                    } else if (v >= 1.1f) {
-                        return JAVA_1_1;
+                // Only try to map numeric-only versions (e.g. "9", "11", "17").
+                // Keep dotted versions like "1.9" returning null to preserve
+                // historical behaviour and existing tests that expect null.
+                if (nom.matches("\\d+")) {
+                    try {
+                        final int major = Integer.parseInt(nom);
+                        if (major >= 9) {
+                            return JAVA_1_8;
+                        } else if (major == 8) {
+                            return JAVA_1_8;
+                        } else if (major == 7) {
+                            return JAVA_1_7;
+                        } else if (major == 6) {
+                            return JAVA_1_6;
+                        } else if (major == 5) {
+                            return JAVA_1_5;
+                        } else if (major == 4) {
+                            return JAVA_1_4;
+                        } else if (major == 3) {
+                            return JAVA_1_3;
+                        } else if (major == 2) {
+                            return JAVA_1_2;
+                        } else if (major == 1) {
+                            return JAVA_1_1;
+                        }
+                    } catch (final Exception ex) {
+                        // fall through to return null for unknown formats
                     }
-                } catch (final Exception ex) {
-                    // fall through to return null for unknown formats
                 }
             }
             return null;

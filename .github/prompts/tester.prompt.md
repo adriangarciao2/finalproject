@@ -34,4 +34,19 @@ Additional guidance for agent behavior:
   - Coverage change (previous -> current) and affected classes
   - Files changed / tests added
   - Proposed next steps
+  
+Tools available in this workspace (primary modules):
+
+- `mcp_tools.tests`: Maven run orchestration, test generation, `improve_tests_iteration()` high-level helper.
+- `mcp_tools.coverage`: JaCoCo XML parsing (`parse_jacoco_report`), uncovered-segment detection, recommendations.
+- `mcp_tools.auto_fix`: Conservative fix proposers and `apply_fix()` for simple edits.
+- `mcp_tools.git_tools`: Git helpers (`git_status`, `git_workflow_commit_and_push`, commit/push/PR helpers).
+- `mcp_tools.dashboard`: Coverage dashboard generator (appends Markdown entries to `reports/coverage_history.md`).
+- `mcp_tools.agent_workflow`: Orchestrator `run_test_improvement_cycle()` wiring the above into a single iteration.
+
+Behavior summary:
+
+- The agent runs tests, parses JaCoCo, generates focused JUnit tests, reruns, and proposes conservative fixes when failures expose bugs.
+- Commits are performed only when `do_commit=True`; by default runs are dry-run to avoid pushing.
+- The `scripts/smoke_test_agent.py` script executes one iteration and writes `reports/smoke_test_result.json` with a detailed summary.
  

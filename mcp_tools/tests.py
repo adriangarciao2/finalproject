@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from mcp_tools.maven_helper import run_maven
 from pathlib import Path
 from typing import Dict, List, Tuple
 import traceback
@@ -386,25 +387,19 @@ def run_maven_tests(project_root: str, timeout: int = 300) -> Dict:
       - raw_output: str
     """
     root = Path(project_root)
-    # Prefer wrapper if available
-    is_windows = os.name == "nt"
-    if is_windows and (root / "mvnw.cmd").exists():
-        cmd = [str(root / "mvnw.cmd"), "test"]
-    elif (root / "mvnw").exists():
-        # use the wrapper script
-        cmd = [str(root / "mvnw"), "test"]
-    else:
-        cmd = ["mvn", "test"]
 
+    # Use the helper to run Maven; helper will prefer mvnw when present and
+    # will resolve the `mvn` executable using shutil.which. It raises
+    # FileNotFoundError when Maven is missing and CalledProcessError when the
+    # process exits with non-zero return code (we catch those below).
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=str(root),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=timeout,
-        )
+        raw = run_maven(["test"], project_root=str(root), timeout=timeout)
+        success = True
+        return_code = 0
+    except subprocess.CalledProcessError as e:
+        raw = e.output or str(e)
+        success = False
+        return_code = e.returncode
     except subprocess.TimeoutExpired as e:
         return {
             "success": False,
@@ -412,9 +407,15 @@ def run_maven_tests(project_root: str, timeout: int = 300) -> Dict:
             "failed_tests": ["timeout"],
             "raw_output": str(e),
         }
-
-    raw = proc.stdout or ""
-    success = proc.returncode == 0
+    except FileNotFoundError as e:
+        msg = str(e)
+        hint = "Ensure 'mvn' is installed and on PATH, or place a Maven wrapper (mvnw) in the project root."
+        return {
+            "success": False,
+            "return_code": -2,
+            "failed_tests": ["maven-not-found"],
+            "raw_output": msg + '\n' + hint,
+        }
 
     failed_tests: List[str] = []
 
@@ -446,10 +447,13 @@ def run_maven_tests(project_root: str, timeout: int = 300) -> Dict:
 
     return {
         "success": success,
-        "return_code": proc.returncode,
+        "return_code": return_code,
         "failed_tests": failed_tests,
         "raw_output": raw,
     }
+
+
+
 
 
 if __name__ == "__main__":
