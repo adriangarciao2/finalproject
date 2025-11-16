@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE file distributed with 
+  this work for additional information regarding copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the 
+  "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 
+  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
+  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations 
+  under the License. -->
+<project
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <groupId>org.apache.commons</groupId>
+    <artifactId>commons-parent</artifactId>
+    <version>28</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>org.apache.commons</groupId>
+  <artifactId>commons-lang3</artifactId>
+  <version>3.2-SNAPSHOT</version>
+  <name>Commons Lang</name>
+
+  <inceptionYear>2001</inceptionYear>
+  <description>
+  Commons Lang, a package of Java utility classes for the
+  classes that are in java.lang's hierarchy, or are considered to be so
+  standard as to justify existence in java.lang.
+</description>
+
+  <url>http://commons.apache.org/proper/commons-lang/</url>
+
+  <issueManagement>
+    <system>jira</system>
+    <url>http://issues.apache.org/jira/browse/LANG</url>
+  </issueManagement>
+
+  <scm>
+    <connection>scm:svn:http://svn.apache.org/repos/asf/commons/proper/lang/trunk</connection>
+    <developerConnection>scm:svn:https://svn.apache.org/repos/asf/commons/proper/lang/trunk</developerConnection>
+    <url>http://svn.apache.org/viewvc/commons/proper/lang/trunk</url>
+  </scm>
+
+  <!-- Lang should depend on very little -->
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.11</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.4</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.easymock</groupId>
+      <artifactId>easymock</artifactId>
+      <version>3.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <distributionManagement>
+    <site>
+      <id>apache.website</id>
+      <name>Apache Commons Site</name>
+      <url>scm:svn:https://svn.apache.org/repos/infra/websites/production/commons/content/proper/commons-lang/</url>
+    </site>
+  </distributionManagement>
+
+  <properties>
+    <project.build.sourceEncoding>ISO-8859-1</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <maven.compile.source>1.8</maven.compile.source>
+    <maven.compile.target>1.8</maven.compile.target>
+    <!--
+       This is also  used to generate download_xxx file name.
+       To override this when generating the download page:
+       
+       mvn commons:download-page -Dcommons.componentid=lang
+       
+       The above seems to change the download page name but not any other
+       properties that depend on the componentid.
+    -->
+    <commons.componentid>lang3</commons.componentid>
+    <!-- Current 3.x release series -->
+    <commons.release.version>3.1</commons.release.version>
+    <commons.release.desc>(Java 5.0+)</commons.release.desc>
+    <!-- Previous 2.x release series -->
+    <commons.release.2.version>2.6</commons.release.2.version>
+    <commons.release.2.desc>(Requires Java 1.2 or later)</commons.release.2.desc>
+    <!-- Override generated name -->
+    <commons.release.2.name>commons-lang-${commons.release.2.version}</commons.release.2.name>
+    <commons.jira.id>LANG</commons.jira.id>
+    <commons.jira.pid>12310481</commons.jira.pid>
+
+    <commons.site.path>lang</commons.site.path>
+    <commons.scmPubUrl>https://svn.apache.org/repos/infra/websites/production/commons/content/proper/commons-lang</commons.scmPubUrl>
+    <commons.scmPubCheckoutDirectory>site-content</commons.scmPubCheckoutDirectory>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>plain</id>
+            <configuration>
+              <includes>
+                <include>**/*Test.java</include>
+              </includes>
+              <runOrder>random</runOrder>
+            </configuration>
+          </execution>
+        </executions>
+        <!-- Add JVM flags to enable reflective access under modern JDKs and
+             reduce console spam by redirecting test output to files. Also set
+             a sane timezone to avoid repeated three-letter ID deprecation
+             warnings in the console. These changes are minimal, confined to
+             the Surefire configuration, and do not alter library source.
+        -->
+        <configuration>
+          <!-- Open commonly-reflected modules to unnamed modules used by tests -->
+          <argLine>${argLine} --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.time=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED</argLine>
+          <!-- Redirect stdout/stderr from tests into files under target/surefire-reports -->
+          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <!-- Force the test JVM to use a named IANA timezone to reduce deprecated 3-letter ID warnings -->
+          <systemPropertyVariables>
+            <user.timezone>America/Phoenix</user.timezone>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <descriptors>
+            <descriptor>src/assembly/bin.xml</descriptor>
+            <descriptor>src/assembly/src.xml</descriptor>
+          </descriptors>
+          <tarLongFileMode>gnu</tarLongFileMode>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- JaCoCo code coverage reporting for the module -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.10</version>
+        <executions>
+          <!-- prepare the agent before tests -->
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+          <!-- generate report after tests -->
+          <execution>
+            <id>report</id>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <phase>verify</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <!-- Avoid instrumenting testbed classes that assert exact field counts; these
+               tests will fail if JaCoCo injects its probe field (e.g. $jacocoData).
+               Exclude the reflect testbed package from instrumentation so tests remain
+               stable while still collecting coverage for the rest of the codebase. -->
+          <excludes>
+            <exclude>org/apache/commons/lang3/reflect/testbed/**</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-scm-publish-plugin</artifactId>
+        <configuration>
+          <ignorePathsToDelete>
+            <ignorePathToDelete>javadocs</ignorePathToDelete>
+          </ignorePathsToDelete>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <reporting>
+    <plugins>
+      <!-- Requires setting 'export MAVEN_OPTS="-Xmx512m" ' -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <version>2.5.2</version>
+        <configuration>
+          <threshold>Normal</threshold>
+          <effort>Default</effort>
+          <excludeFilterFile>${basedir}/findbugs-exclude-filter.xml</excludeFilterFile>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>cobertura-maven-plugin</artifactId>
+        <version>2.5.1</version>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>clirr-maven-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <minSeverity>info</minSeverity>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>3.0.1</version>
+        <configuration>
+          <targetJdk>${maven.compile.target}</targetJdk>
+        </configuration>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>pmd</report>
+              <report>cpd</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>taglist-maven-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <tags>
+            <tag>TODO</tag>
+            <tag>NOPMD</tag>
+            <tag>NOTE</tag>
+          </tags>
+        </configuration>
+      </plugin>
+    </plugins>
+  </reporting>
+  <profiles>
+    <profile>
+      <id>setup-checkout</id>
+      <activation>
+        <file>
+          <missing>site-content</missing>
+        </file>
+      </activation>
+    </profile>
+  </profiles>
+</project>
