@@ -8,3 +8,30 @@ wheels/
 
 # Virtual environments
 .venv
+
+
+# Java / Maven
+target/
+*.class
+
+# Maven wrapper jar should be committed; don't ignore .mvn
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Backup and temp files
+*~
+# node modules (if applicable)
+node_modules/
