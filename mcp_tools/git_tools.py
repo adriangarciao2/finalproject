@@ -195,7 +195,7 @@ def git_pull_request(repo_dir: str, base: str = "main", title: Optional[str] = N
         cmd = [gh_path, "pr", "create", "--base", base, "--head", head, "--title", title, "--body", body]
         rc2, out2 = _run(cmd, cwd=str(root))
         # gh prints URL on success to stdout
-        url_match = re.search(r"https?://[^"]+", out2)
+        url_match = re.search(r"https?://\S+", out2)
         url = url_match.group(0) if url_match else None
         return {"success": rc2 == 0, "url": url, "raw": out2}
 
@@ -232,3 +232,74 @@ def git_pull_request(repo_dir: str, base: str = "main", title: Optional[str] = N
             return {"success": True, "url": j.get("html_url"), "raw": resp_data}
     except Exception as e:
         return {"success": False, "url": None, "raw": str(e)}
+
+
+def git_workflow_commit_and_push(repo_dir: str, message: Optional[str] = None, remote: str = "origin", create_pr: bool = False, base: str = "main", allow_main: bool = False, pr_title: Optional[str] = None, pr_body: Optional[str] = None, dry_run: bool = False) -> Dict:
+    """Helper to run add -> commit -> push and optionally create a PR.
+
+    Behavior:
+      - Refuse to run if current branch is `main` or `master` unless `allow_main` is True.
+      - Stages all changes (respecting .gitignore), commits with composed message if not given, pushes, and optionally opens a PR.
+
+    Returns a summary dict with keys: success, branch, staged, committed, pushed, pr_url, raw_outputs
+    """
+    root = str(Path(repo_dir))
+    out: Dict = {"success": False, "branch": None, "staged": [], "committed": 0, "pushed": False, "pr_url": None, "raw": {}}
+
+    status = git_status(root)
+    branch = status.get("branch")
+    out["branch"] = branch
+
+    if branch in ("main", "master") and not allow_main:
+        out["raw"]["error"] = f"Refusing to commit on protected branch {branch}. Set allow_main=True to override."
+        return out
+
+    # Dry-run: don't perform add/commit/push, just describe actions
+    if dry_run:
+        would_stage = list(set(status.get("unstaged", []) + status.get("untracked", [])))
+        commit_message = _compose_commit_message(repo_dir, message)
+        would_push_to = {"remote": remote, "branch": branch}
+        would_pr = None
+        if create_pr:
+            would_pr = {"base": base, "title": pr_title or f"feat: changes on {branch}", "body": pr_body or "Automated PR created by MCP tools."}
+
+        out["dry_run"] = True
+        out["would_stage"] = would_stage
+        out["would_commit_message"] = commit_message
+        out["would_push_to"] = would_push_to
+        out["would_create_pr"] = would_pr
+        out["success"] = True
+        return out
+
+    # Stage all
+    add_res = git_add_all(root)
+    out["staged"] = add_res.get("staged", [])
+    out["raw"]["add"] = add_res.get("raw")
+
+    if not out["staged"]:
+        out["raw"]["info"] = "No changes to commit"
+        out["success"] = True
+        return out
+
+    # Commit
+    commit_res = git_commit(root, message)
+    out["committed"] = commit_res.get("committed", 0)
+    out["raw"]["commit"] = commit_res.get("raw")
+    out["message"] = commit_res.get("message")
+    if not commit_res.get("success"):
+        out["raw"]["error"] = "Commit failed"
+        return out
+
+    # Push
+    push_res = git_push(root, remote=remote)
+    out["pushed"] = push_res.get("success", False)
+    out["raw"]["push"] = push_res.get("raw")
+
+    # Optionally create PR
+    if create_pr:
+        pr_res = git_pull_request(root, base=base, title=pr_title, body=pr_body)
+        out["pr_url"] = pr_res.get("url")
+        out["raw"]["pr"] = pr_res.get("raw")
+
+    out["success"] = True
+    return out
