@@ -248,6 +248,14 @@ python -c "from mcp_tools.agent_workflow import run_test_improvement_cycle; run_
 
 ---
 
+  ## Coverage
+
+  - Short JaCoCo snapshot and link: `d2l/COVERAGE_SUMMARY.md`.
+  - HTML report: `d2l/target/site/jacoco/index.html` (open in a browser or with PowerShell using `Start-Process`).
+
+  See `d2l/COVERAGE_SUMMARY.md` for the current coverage numbers and links to the detailed report.
+
+
 ## Future Work & Limitations
 
 - Dependence on JDK version: we added test-time JVM flags to support modern JDKs; long-term the library/tests should be made JDK version tolerant.
